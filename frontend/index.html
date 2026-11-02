@@ -23,6 +23,12 @@
         --land: #f7f8f4;
         --border: #b9c6c2;
         --grat: #cfdbe0;
+        --water: #a9d0e6;
+        --river: #5b9fc7;
+        --water-ink: #2b6a92;
+        --relief-ink: #6b5138;
+        --relief-alpha: 1;
+        --detail-wash: rgba(255, 255, 255, .42);
         --c1: #0f8a4f;
         --c2: #2563eb;
         --c3: #c2410c;
@@ -53,6 +59,12 @@
             --land: #1d2a27;
             --border: #33453f;
             --grat: #1a2b31;
+            --water: #1d4254;
+            --river: #3f86a8;
+            --water-ink: #8cc4e0;
+            --relief-ink: #d8c3a5;
+            --relief-alpha: .6;
+            --detail-wash: rgba(15, 29, 36, .55);
             --c1: #34d399;
             --c2: #60a5fa;
             --c3: #fb923c;
@@ -82,6 +94,12 @@
         --land: #1d2a27;
         --border: #33453f;
         --grat: #1a2b31;
+        --water: #1d4254;
+        --river: #3f86a8;
+        --water-ink: #8cc4e0;
+        --relief-ink: #d8c3a5;
+        --relief-alpha: .6;
+        --detail-wash: rgba(15, 29, 36, .55);
         --c1: #34d399;
         --c2: #60a5fa;
         --c3: #fb923c;
@@ -462,6 +480,18 @@
 
     canvas:active {
         cursor: grabbing
+    }
+
+    .credit {
+        position: absolute;
+        right: 6px;
+        bottom: 4px;
+        font-size: 10px;
+        padding: 0 4px;
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--panel) 70%, transparent);
+        color: var(--muted);
+        pointer-events: none
     }
 
     .ov {
@@ -984,6 +1014,7 @@
     <div class="main">
         <div class="mapbox" id="mapbox">
             <canvas id="cv" data-i18n-aria="mapAria" aria-label="Map of bird tracks"></canvas>
+            <div class="credit">Terrain: AWS Terrain Tiles · Natural Earth · © OpenStreetMap contributors · Detail: SRTM, © OpenTopoMap (CC-BY-SA)</div>
             <div class="ov tl"><span class="clock" id="clock">—</span><span class="pill" id="synth" hidden
                                                                             data-i18n="synth">Synthetic sample data, not real tracking records</span>
             </div>
@@ -1019,6 +1050,10 @@
                 <label><input type="checkbox" id="showLines" checked> <span data-i18n="lines">Route lines</span></label>
                 <label><input type="checkbox" id="showFull" checked> <span data-i18n="full">Full routes</span></label>
                 <label><input type="checkbox" id="showPts" checked> <span data-i18n="pts">GPS fixes</span></label>
+                <label><input type="checkbox" id="showRelief" checked> <span data-i18n="relief">Mountains</span></label>
+                <label><input type="checkbox" id="showWater" checked> <span data-i18n="water">Rivers &amp; lakes</span></label>
+                <label><input type="checkbox" id="showNames" checked> <span data-i18n="names">Names</span></label>
+                <label><input type="checkbox" id="showDetail" checked> <span data-i18n="detail">Detailed map (online)</span></label>
                 <span class="jump"><input type="datetime-local" id="jumpIn" step="60" data-i18n-aria="jumpAria"
                                           aria-label="Jump to time (UTC)"><button class="btn" id="jumpBtn" type="button"
                                                                                   data-i18n="jump">Jump (UTC)</button></span>
@@ -1034,6 +1069,7 @@
 </dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="geo/map_layers.js"></script>
 <script>
     // Backend API: same origin when the page is served by the backend, localhost:8000 when opened as a file.
     window.HPAI_API = window.HPAI_API ?? (location.protocol === "file:" ? "http://localhost:8000" : "");
@@ -2314,6 +2350,10 @@
             scenName: "Scenario {n} · {name}",
             s5: "Poultry farms · buffer zones",
             showFarms: "Show farms",
+            relief: "Mountains",
+            water: "Rivers & lakes",
+            names: "Names",
+            detail: "Detailed map (online)",
             bufLbl: "Buffer",
             farmLoad: "Load farm CSV",
             lgIdle: "No contact yet",
@@ -2420,6 +2460,10 @@
             scenName: "시나리오 {n} · {name}",
             s5: "가금농장 · 방역대",
             showFarms: "농장 표시",
+            relief: "산지",
+            water: "강 · 호수",
+            names: "지명",
+            detail: "상세 지도 (온라인)",
             bufLbl: "반경",
             farmLoad: "농장 CSV 불러오기",
             lgIdle: "접촉 없음",
@@ -2632,6 +2676,35 @@
     });
     const landPath = new Path2D(d3.geoPath(proj)(WORLD));
     const gratPath = new Path2D(d3.geoPath(proj)(d3.geoGraticule().step([10, 10])()));
+
+    /* flat [lon, lat, lon, lat, ...] rings -> canvas path in map units */
+    function ringsPath(rings) {
+        const path = new Path2D();
+        for (const r of rings) {
+            for (let i = 0; i < r.length; i += 2) {
+                const [x, y] = proj([r[i], r[i + 1]]);
+                i ? path.lineTo(x, y) : path.moveTo(x, y);
+            }
+        }
+        return path;
+    }
+
+    const zoomed = g => ({k: g.k, path: ringsPath(g.r)});
+    const BASE = {
+        land: ringsPath(MAP_LAYERS.land),
+        coast: ringsPath(MAP_LAYERS.coast),
+        borders: ringsPath(MAP_LAYERS.borders),
+        rivers: MAP_LAYERS.rivers.map(zoomed),
+        lakes: MAP_LAYERS.lakes.map(zoomed),
+        labels: MAP_LAYERS.labels.map(l => ({...l, xy: proj([l.x, l.y])})),
+        relief: MAP_LAYERS.relief.map(l => ({...l, img: null})),
+        outside: new Path2D()      // the world minus the detailed region, where the coarse WORLD outline is used
+    };
+    {
+        const [lon0, lat0, lon1, lat1] = MAP_LAYERS.region, [x0, y0] = proj([lon0, lat1]), [x1, y1] = proj([lon1, lat0]);
+        BASE.outside.rect(-1000, -1000, 3000, 3000);
+        BASE.outside.rect(x0, y0, x1 - x0, y1 - y0);
+    }
 
     function $(id) {
         return document.getElementById(id);
@@ -2855,7 +2928,7 @@
 
     function readColors() {
         const cs = getComputedStyle(document.documentElement);
-        ["--ocean", "--land", "--border", "--grat", "--panel", "--fg", "--muted", "--farm", "--warn", "--risk", ...Array.from({length: 8}, (_, i) => `--c${i + 1}`)].forEach(v => colors[v] = cs.getPropertyValue(v).trim());
+        ["--ocean", "--land", "--border", "--grat", "--water", "--river", "--water-ink", "--relief-ink", "--relief-alpha", "--detail-wash", "--panel", "--fg", "--muted", "--farm", "--warn", "--risk", ...Array.from({length: 8}, (_, i) => `--c${i + 1}`)].forEach(v => colors[v] = cs.getPropertyValue(v).trim());
     }
 
     readColors();
@@ -2909,6 +2982,47 @@
         if (n >= fx.length) return tm > d.times[fx.length - 1] ? null : [fx[fx.length - 1].lat, fx[fx.length - 1].lon];
         const a = fx[n - 1], b = fx[n], f = (tm - a.t) / (b.t - a.t);
         return [a.lat + (b.lat - a.lat) * f, a.lon + (b.lon - a.lon) * f];
+    }
+
+    /* Screen angle towards the bird's next recorded position; null when its track has no further move.
+       Fixes closer than MIN_MOVE_KM are GPS noise around a resting bird, so they are skipped. */
+    const MIN_MOVE_KM = 0.03;
+
+    function nextHeading(d, p) {
+        if (p.ended) return null;
+        const min = MIN_MOVE_KM * 1000 / (40075 * Math.cos(d.fixes[p.idx].lat * Math.PI / 180));   // map units
+        for (let i = p.idx + 1; i < d.xy.length; i++) {
+            const dx = d.xy[i][0] - p.x, dy = d.xy[i][1] - p.y;
+            if (Math.hypot(dx, dy) >= min) return Math.atan2(dy, dx);
+        }
+        return null;
+    }
+
+    function drawArrow(x, y, angle, color) {   // fixed size on screen, starting at the edge of the bird marker
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(7, 0);
+        ctx.lineTo(19, 0);
+        ctx.strokeStyle = colors["--panel"];
+        ctx.lineWidth = 5;
+        ctx.stroke();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(28, 0);
+        ctx.lineTo(17, -6);
+        ctx.lineTo(17, 6);
+        ctx.closePath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = colors["--panel"];
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
     }
 
     /* ---------- poultry farms + buffer zones ---------- */
@@ -3048,25 +3162,195 @@
         renderScenarios();
     }
 
+    /* The base map only changes with the view, so playback frames reuse it instead of redrawing every river. */
+    const baseCv = document.createElement("canvas"), baseCtx = baseCv.getContext("2d");
+    let baseKey = "";
+
+    function reliefLevel(l) {
+        if (!l.img) {
+            l.img = new Image();
+            l.img.onload = () => {
+                baseKey = "";
+                draw();
+            };
+            l.img.src = l.src;
+        }
+        return l.img.complete && l.img.naturalWidth ? l.img : null;
+    }
+
+    /* Past the local relief the map zooms into online topographic tiles; without a connection the local layers stay. */
+    const DETAIL = {maxZ: 17, tiles: new Map(), wanted: [], timer: 0};
+
+    function detailStartK() {
+        const cx = (W / 2 - T.x) / T.k, cy = (H / 2 - T.y) / T.k;
+        const l = [...BASE.relief].reverse().find(l => cx >= l.x && cx <= l.x + l.w && cy >= l.y && cy <= l.y + l.h);
+        const native = l ? 0.256 * 2 ** +l.src.match(/z(\d+)/)[1] : 4;   // pixels of that relief image per map unit
+        return Math.max(20, native * 1.25);
+    }
+
+    function requestDetail() {
+        clearTimeout(DETAIL.timer);
+        DETAIL.timer = setTimeout(() => {       // only once zooming settles, so passing zoom levels are not downloaded
+            for (const [z, x, y] of DETAIL.wanted) {
+                const key = `${z}/${x}/${y}`;
+                if (DETAIL.tiles.has(key)) continue;
+                const img = new Image();
+                img.onload = () => {
+                    baseKey = "";
+                    draw();
+                };
+                img.onerror = () => DETAIL.tiles.delete(key);
+                img.src = `https://tile.opentopomap.org/${key}.png`;
+                DETAIL.tiles.set(key, img);
+            }
+            for (const key of DETAIL.tiles.keys()) {
+                if (DETAIL.tiles.size <= 400) break;
+                DETAIL.tiles.delete(key);
+            }
+        }, 200);
+    }
+
+    /* draws the visible tiles in screen pixels, using a coarser tile until the right one arrives; returns how many were drawn */
+    function drawDetail(c) {
+        const z = Math.min(DETAIL.maxZ, Math.round(Math.log2(T.k * 1000 / 256))), n = 2 ** z, size = T.k * 1000 / n;
+        const x0 = Math.max(0, Math.floor(-T.x / size)), x1 = Math.min(n - 1, Math.floor((W - T.x) / size));
+        const y0 = Math.max(0, Math.floor(-T.y / size)), y1 = Math.min(n - 1, Math.floor((H - T.y) / size));
+        let drawn = 0;
+        DETAIL.wanted = [];
+        for (let x = x0; x <= x1; x++) {
+            for (let y = y0; y <= y1; y++) {
+                DETAIL.wanted.push([z, x, y]);
+                for (let up = 0; up <= 5 && up <= z; up++) {
+                    const scale = 2 ** up, px = Math.floor(x / scale), py = Math.floor(y / scale);
+                    const img = DETAIL.tiles.get(`${z - up}/${px}/${py}`);
+                    if (!img?.naturalWidth) continue;
+                    const sw = 256 / scale, sx = (x - px * scale) * sw, sy = (y - py * scale) * sw;
+                    const dx = Math.round(T.x + x * size), dy = Math.round(T.y + y * size);
+                    c.drawImage(img, sx, sy, sw, sw, dx, dy, Math.round(T.x + (x + 1) * size) - dx, Math.round(T.y + (y + 1) * size) - dy);
+                    drawn++;
+                    break;
+                }
+            }
+        }
+        if (drawn) {                            // wash the busy topographic colours so tracks and farms stay readable
+            c.fillStyle = colors["--detail-wash"];
+            c.fillRect(0, 0, W, H);
+        }
+        requestDetail();
+        return drawn;
+    }
+
+    function baseMap(dpr, font) {
+        const relief = $("showRelief").checked, water = $("showWater").checked, names = $("showNames").checked,
+            detail = $("showDetail").checked && T.k >= detailStartK();
+        const key = [T.x, T.y, T.k, W, H, dpr, LANG, relief, water, names, detail, colors["--land"]].join();
+        if (key === baseKey) return baseCv;
+        baseKey = key;
+        const c = baseCtx;
+        baseCv.width = cv.width;
+        baseCv.height = cv.height;
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        c.fillStyle = colors["--ocean"];
+        c.fillRect(0, 0, W, H);
+        c.translate(T.x, T.y);
+        c.scale(T.k, T.k);
+        c.strokeStyle = colors["--grat"];
+        c.lineWidth = 1 / T.k;
+        c.stroke(gratPath);
+        c.save();
+        c.clip(BASE.outside, "evenodd");
+        c.fillStyle = colors["--land"];
+        c.fill(landPath);
+        c.strokeStyle = colors["--border"];
+        c.lineWidth = 0.8 / T.k;
+        c.stroke(landPath);
+        c.restore();
+        c.fillStyle = colors["--land"];
+        c.fill(BASE.land, "evenodd");
+        if (relief) {
+            c.globalAlpha = +colors["--relief-alpha"] || 1;
+            c.save();
+            // finest level first; each one is clipped out for the coarser ones so transparent levels do not stack
+            for (const l of [...BASE.relief].reverse()) {
+                const offView = T.x + (l.x + l.w) * T.k < 0 || T.x + l.x * T.k > W || T.y + (l.y + l.h) * T.k < 0 || T.y + l.y * T.k > H;
+                if (T.k < l.k || offView) continue;
+                const img = reliefLevel(l);
+                if (!img) continue;
+                c.drawImage(img, l.x, l.y, l.w, l.h);
+                const rest = new Path2D();
+                rest.rect(-1000, -1000, 3000, 3000);
+                rest.rect(l.x, l.y, l.w, l.h);
+                c.clip(rest, "evenodd");
+            }
+            c.restore();
+            c.globalAlpha = 1;
+        }
+        c.strokeStyle = colors["--border"];
+        c.lineWidth = 0.8 / T.k;
+        c.stroke(BASE.coast);
+        c.stroke(BASE.borders);
+        if (water) {
+            c.fillStyle = colors["--water"];
+            for (const g of BASE.lakes) if (T.k >= g.k) c.fill(g.path, "evenodd");
+            c.strokeStyle = colors["--river"];
+            c.lineJoin = c.lineCap = "round";
+            BASE.rivers.forEach((g, i) => {
+                if (T.k < g.k) return;
+                c.lineWidth = (i < 2 ? 1.5 : 1) / T.k;
+                c.stroke(g.path);
+            });
+        }
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const tiles = detail ? drawDetail(c) : 0;
+        if (names && !tiles) drawNames(c, font, relief, water);      // the tiles carry their own names
+        return baseCv;
+    }
+
+    /* map names: most important first, a name is skipped when it would overlap one already placed */
+    function drawNames(c, font, relief, water) {
+        const placed = [], shown = {sea: true, river: water, lake: water, peak: relief, range: relief};
+        const style = {
+            sea: ["italic 500 12px ", "--water-ink"], lake: ["italic 500 11px ", "--water-ink"],
+            river: ["italic 500 11px ", "--water-ink"], range: ["600 11.5px ", "--relief-ink"], peak: ["500 11px ", "--relief-ink"]
+        };
+        const list = BASE.labels.filter(l => shown[l.t] && T.k >= l.k).sort((a, b) => a.k - b.k);
+        c.textBaseline = "middle";
+        c.lineJoin = "round";
+        for (const l of list) {
+            const x = T.x + l.xy[0] * T.k, y = T.y + l.xy[1] * T.k;
+            if (y < 0 || y > H) continue;
+            const name = LANG === "ko" ? l.ko : l.en;
+            if (!name) continue;
+            const text = name + (l.e ? ` ${l.e} m` : ""), mark = l.t === "peak" ? 9 : 0;
+            c.font = style[l.t][0] + font;
+            const w = c.measureText(text).width, x0 = mark ? x - 4 : x - w / 2;
+            if (x0 < 0 || x0 + mark + w > W) continue;
+            const hit = [x0 - 4, y - 9, x0 + mark + w + 4, y + 9];
+            if (placed.some(b => hit[0] < b[2] && hit[2] > b[0] && hit[1] < b[3] && hit[3] > b[1])) continue;
+            placed.push(hit);
+            c.fillStyle = colors[style[l.t][1]];
+            if (mark) {
+                c.beginPath();
+                c.moveTo(x, y - 4);
+                c.lineTo(x + 4, y + 3);
+                c.lineTo(x - 4, y + 3);
+                c.fill();
+            }
+            c.lineWidth = 3;
+            c.strokeStyle = colors["--panel"];
+            c.globalAlpha = .75;
+            c.strokeText(text, x0 + mark, y);
+            c.globalAlpha = 1;
+            c.fillText(text, x0 + mark, y);
+        }
+    }
+
     function draw() {
         renderBirdValues();
         if (!W) return;
         const dpr = window.devicePixelRatio || 1, font = getComputedStyle(document.body).fontFamily;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.fillStyle = colors["--ocean"];
-        ctx.fillRect(0, 0, W, H);
-        ctx.save();
-        ctx.translate(T.x, T.y);
-        ctx.scale(T.k, T.k);
-        ctx.strokeStyle = colors["--grat"];
-        ctx.lineWidth = 1 / T.k;
-        ctx.stroke(gratPath);
-        ctx.fillStyle = colors["--land"];
-        ctx.fill(landPath);
-        ctx.strokeStyle = colors["--border"];
-        ctx.lineWidth = 0.8 / T.k;
-        ctx.stroke(landPath);
-        ctx.restore();
+        ctx.drawImage(baseMap(dpr, font), 0, 0, W, H);
         const X = p => T.x + p[0] * T.k, Y = p => T.y + p[1] * T.k;
         const fs = farmState(S.cur);
         S.fs = fs;
@@ -3144,7 +3428,8 @@
                 }
             }
             ctx.globalAlpha = 1;
-            const sx = T.x + p.x * T.k, sy = T.y + p.y * T.k;
+            const sx = T.x + p.x * T.k, sy = T.y + p.y * T.k, heading = nextHeading(d, p);
+            if (heading !== null) drawArrow(sx, sy, heading, col);
             ctx.beginPath();
             ctx.arc(sx, sy, p.ended ? 4.5 : 6, 0, 7);
             if (p.ended) {
@@ -3377,6 +3662,10 @@
         if (e.target === $("guide")) $("guide").close();
     });
     $("showFarms").onchange = draw;
+    $("showRelief").onchange = draw;
+    $("showWater").onchange = draw;
+    $("showNames").onchange = draw;
+    $("showDetail").onchange = draw;
     $("bufKm").onchange = e => {
         S.bufferKm = +e.target.value;
         if (S.farmsRaw.length) setFarms(S.farmsRaw, S.farmFile);
