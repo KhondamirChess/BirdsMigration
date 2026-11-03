@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Bird–HPAI Risk Simulator</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -717,69 +718,6 @@
         word-break: keep-all
     }
 
-    .guide {
-        max-width: 560px;
-        width: calc(100% - 32px);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 0;
-        background: var(--panel);
-        color: var(--fg)
-    }
-
-    .guide::backdrop {
-        background: rgb(0 0 0 / .45)
-    }
-
-    .guide .gh {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 14px 18px;
-        border-bottom: 1px solid var(--line)
-    }
-
-    .guide .gh h2 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600
-    }
-
-    .guide .gb {
-        padding: 6px 18px 16px;
-        font-size: .88rem;
-        max-height: 70vh;
-        overflow: auto
-    }
-
-    .guide .gb h3 {
-        font-size: .8rem;
-        letter-spacing: .05em;
-        text-transform: uppercase;
-        color: var(--accent-ink);
-        margin: 14px 0 4px
-    }
-
-    .guide .gb p, .guide .gb ul {
-        margin: 0 0 6px
-    }
-
-    .guide .gb ul {
-        padding-left: 18px
-    }
-
-    .guide .gb li {
-        margin: 2px 0
-    }
-
-    .guide .gb kbd {
-        font: 500 .76rem var(--mono);
-        border: 1px solid var(--line);
-        border-radius: 4px;
-        padding: 0 4px;
-        background: var(--sunk)
-    }
-
     .watch {
         font-size: .85rem
     }
@@ -943,7 +881,6 @@
         <h1 data-i18n="title">Bird–HPAI Risk Simulator</h1>
         <span class="ms" data-i18n="ms">Milestone 2 · farm-contact demo scenarios</span>
         <span class="tools">
-      <button class="btn" id="guideBtn" type="button" data-i18n="guide">Guide</button>
       <span class="seg" role="group" aria-label="Language / 언어">
         <button type="button" id="lang-en" aria-pressed="true">English</button>
         <button type="button" id="lang-ko" aria-pressed="false" lang="ko">한국어</button>
@@ -1048,7 +985,8 @@
                     <option value="604800000" data-i18n="spw">1 week / s</option>
                 </select></label>
                 <label><input type="checkbox" id="showLines" checked> <span data-i18n="lines">Route lines</span></label>
-                <label><input type="checkbox" id="showFull" checked> <span data-i18n="full">Full routes</span></label>
+                <label><input type="checkbox" id="showFull"> <span data-i18n="full">Full routes</span></label>
+                <label><input type="checkbox" id="showArrows" checked> <span data-i18n="arrows">Route arrows</span></label>
                 <label><input type="checkbox" id="showPts" checked> <span data-i18n="pts">GPS fixes</span></label>
                 <label><input type="checkbox" id="showRelief" checked> <span data-i18n="relief">Mountains</span></label>
                 <label><input type="checkbox" id="showWater" checked> <span data-i18n="water">Rivers &amp; lakes</span></label>
@@ -1062,11 +1000,6 @@
     </div>
 </div>
 
-<dialog class="guide" id="guide" aria-labelledby="guideTitle">
-    <div class="gh"><h2 id="guideTitle" data-i18n="guideTitle">How to use the simulator</h2>
-        <button class="btn" id="guideClose" type="button" data-i18n="close">Close</button></div>
-    <div class="gb" data-i18n-html="guideHtml"></div>
-</dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="geo/map_layers.js"></script>
@@ -2334,6 +2267,7 @@
             sp3d: "3 days / s",
             spw: "1 week / s",
             full: "Full routes",
+            arrows: "Route arrows",
             pts: "GPS fixes",
             jump: "Jump (UTC)",
             jumpAria: "Jump to time (UTC)",
@@ -2375,9 +2309,7 @@
             farmZoom: "Click a farm to zoom to it",
             farmNone: "No bird inside a buffer yet",
             s6: "Individuals",
-            guide: "Guide", guideTitle: "How to use the simulator", close: "Close",
             watch: "Watch bird", allBirds: "All birds ({n})", lines: "Route lines",
-            guideHtml: "<h3>1 · Pick a scenario</h3><p>Choose <b>1</b>, <b>2</b> or <b>3</b> in step 1. All three use the same 20 mallards, so you can compare how farm contact changes.</p><h3>2 · Play the season</h3><ul><li>Press <b>▶</b> or <kbd>Space</kbd> to play or pause.</li><li><b>Speed</b> sets how much time passes per second.</li><li>Drag the time slider, or type a date and press <b>Jump</b>. All times are UTC.</li></ul><h3>3 · Watch birds</h3><ul><li><b>Watch bird</b> (step 4) shows one bird and zooms to it. Choose <b>All birds</b> to bring everyone back.</li><li>Step 6 lists all 20 birds. Tick or untick a bird to show or hide it.</li><li>Click a track on the map to see that GPS fix.</li></ul><h3>4 · What is drawn</h3><ul><li><b>Route lines</b> off: no lines, only the GPS points and each bird's current position.</li><li><b>Full routes</b>: the faint line for the whole season, including what has not happened yet.</li><li><b>GPS fixes</b>: one dot per GPS fix so far.</li></ul><h3>5 · Farms and buffer zones</h3><ul><li>Squares are poultry farms; circles are their buffer zones (3 km by default, change it under <b>Buffer</b>).</li><li>Grey: no bird yet · orange: a bird was inside earlier · red: a bird is inside now.</li><li>Click a farm in the list to zoom to it, or click a farm on the map for its details.</li></ul><h3>6 · Moving the map</h3><p>Drag to pan, scroll or use <b>+ / −</b> to zoom, and <b>Fit</b> to show all visible birds.</p><p><small>The demo tracks and farms are synthetic. Real tracks and farms are loaded on the server side.</small></p>"
         },
         ko: {
             title: "철새–HPAI 위험 시뮬레이터",
@@ -2444,6 +2376,7 @@
             sp3d: "1초당 3일",
             spw: "1초당 1주",
             full: "전체 경로",
+            arrows: "경로 화살표",
             pts: "GPS 위치점",
             jump: "이동 (UTC)",
             jumpAria: "특정 시각으로 이동 (UTC)",
@@ -2485,9 +2418,7 @@
             farmZoom: "농장을 클릭하면 확대됩니다",
             farmNone: "아직 방역대에 들어온 개체가 없습니다",
             s6: "개체",
-            guide: "사용 안내", guideTitle: "시뮬레이터 사용 안내", close: "닫기",
             watch: "개체 보기", allBirds: "전체 개체 ({n})", lines: "경로 선",
-            guideHtml: "<h3>1 · 시나리오 선택</h3><p>1단계에서 <b>1</b>, <b>2</b>, <b>3</b> 중 하나를 고르세요. 세 시나리오 모두 같은 청둥오리 20마리를 사용하므로 농장 접촉이 어떻게 달라지는지 비교할 수 있습니다.</p><h3>2 · 재생</h3><ul><li><b>▶</b> 버튼이나 <kbd>Space</kbd>로 재생/일시정지합니다.</li><li><b>속도</b>는 1초 동안 흐르는 시간을 정합니다.</li><li>시간 슬라이더를 끌거나 날짜를 입력한 뒤 <b>이동</b>을 누르세요. 모든 시각은 UTC입니다.</li></ul><h3>3 · 개체 보기</h3><ul><li>4단계의 <b>개체 보기</b>에서 한 마리를 고르면 그 개체만 표시하고 확대합니다. <b>전체 개체</b>를 고르면 모두 다시 표시됩니다.</li><li>6단계에 20마리가 모두 나옵니다. 체크하거나 해제해 개체를 표시하거나 숨깁니다.</li><li>지도에서 경로를 클릭하면 해당 GPS 위치 정보가 나옵니다.</li></ul><h3>4 · 지도 표시</h3><ul><li><b>경로 선</b>을 끄면 선 없이 GPS 위치점과 현재 위치만 표시됩니다.</li><li><b>전체 경로</b>: 아직 지나지 않은 부분까지 시즌 전체 경로를 흐리게 표시합니다.</li><li><b>GPS 위치점</b>: 지금까지의 GPS 위치를 점으로 표시합니다.</li></ul><h3>5 · 농장과 방역대</h3><ul><li>사각형은 가금농장, 원은 방역대입니다 (기본 3 km, <b>반경</b>에서 변경).</li><li>회색: 접촉 없음 · 주황: 이전에 개체가 들어옴 · 빨강: 지금 개체가 들어와 있음.</li><li>목록의 농장을 클릭하면 확대되고, 지도에서 농장을 클릭하면 상세 정보가 나옵니다.</li></ul><h3>6 · 지도 이동</h3><p>드래그로 이동, 스크롤이나 <b>+ / −</b>로 확대·축소, <b>맞춤</b>으로 보이는 개체 전체를 표시합니다.</p><p><small>데모 경로와 농장은 합성 데이터입니다. 실제 경로와 농장은 서버에서 불러옵니다.</small></p>"
         }
     };
 
@@ -2998,30 +2929,84 @@
         return null;
     }
 
-    function drawArrow(x, y, angle, color) {   // fixed size on screen, starting at the edge of the bird marker
+    function drawArrow(x, y, angle, color) {   // fixed size on screen, starting at the edge of the bird marker; brighter than the route arrows
         ctx.save();
+        ctx.globalAlpha = 1;
         ctx.translate(x, y);
         ctx.rotate(angle);
         ctx.lineJoin = "round";
+        ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(7, 0);
-        ctx.lineTo(19, 0);
+        ctx.lineTo(21, 0);
         ctx.strokeStyle = colors["--panel"];
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 6;
         ctx.stroke();
+        ctx.shadowColor = color;                // soft glow in the bird's colour
+        ctx.shadowBlur = 10;
         ctx.strokeStyle = color;
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 3;
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(28, 0);
-        ctx.lineTo(17, -6);
-        ctx.lineTo(17, 6);
+        ctx.moveTo(32, 0);
+        ctx.lineTo(19, -7.5);
+        ctx.lineTo(19, 7.5);
         ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
         ctx.lineWidth = 2;
         ctx.strokeStyle = colors["--panel"];
         ctx.stroke();
-        ctx.fillStyle = color;
         ctx.fill();
+        ctx.restore();
+    }
+
+    /* Small, muted arrowheads along the part of a bird's route it has already flown, pointing from its first fix
+       towards its current position. They appear as the bird moves; spacing is measured on screen from the route
+       start, so arrows stay put while the route grows. The bird's own heading arrow (drawArrow) stays bright. */
+    const ROUTE_ARROW_GAP = 70;    // px between arrowheads
+    const ROUTE_ARROW_ALPHA = .45;
+
+    function drawRouteArrows(d, p) {
+        const last = p.ended ? d.xy.length - 1 : p.idx;
+        const pts = d.xy.slice(0, last + 1).map(q => [T.x + q[0] * T.k, T.y + q[1] * T.k]);
+        const bx = T.x + p.x * T.k, by = T.y + p.y * T.k;
+        if (!p.ended) pts.push([bx, by]);                  // up to the bird's interpolated position
+        if (pts.length < 2) return;
+        let acc = 0, next = ROUTE_ARROW_GAP / 2;
+        ctx.save();
+        ctx.globalAlpha = ROUTE_ARROW_ALPHA;
+        ctx.lineJoin = "round";
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = colors["--panel"];
+        ctx.fillStyle = colors[d.color];
+        for (let i = 0; i < pts.length - 1; i++) {
+            const [ax, ay] = pts[i], dx = pts[i + 1][0] - ax, dy = pts[i + 1][1] - ay, len = Math.hypot(dx, dy);
+            if (len < 0.5) {
+                acc += len;
+                continue;
+            }
+            const ang = Math.atan2(dy, dx);
+            for (; next <= acc + len; next += ROUTE_ARROW_GAP) {
+                const f = (next - acc) / len, x = ax + dx * f, y = ay + dy * f;
+                if (x < -10 || y < -10 || x > W + 10 || y > H + 10) continue;
+                if (Math.hypot(x - bx, y - by) < 30) continue;   // keep clear of the bird and its heading arrow
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(ang);
+                ctx.beginPath();
+                ctx.moveTo(4.5, 0);
+                ctx.lineTo(-3.5, -4);
+                ctx.lineTo(-1.2, 0);
+                ctx.lineTo(-3.5, 4);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fill();
+                ctx.restore();
+            }
+            acc += len;
+        }
         ctx.restore();
     }
 
@@ -3382,7 +3367,8 @@
             });
         }
         renderFarmStats(fs);
-        const lines = $("showLines").checked, full = lines && $("showFull").checked, pts = $("showPts").checked;
+        const lines = $("showLines").checked, full = lines && $("showFull").checked, pts = $("showPts").checked,
+            arrows = lines && $("showArrows").checked;
         const vis = S.inds.filter(visible), em = $("empty");
         if (!S.raw) {
             em.hidden = false;
@@ -3428,6 +3414,7 @@
                 }
             }
             ctx.globalAlpha = 1;
+            if (arrows) drawRouteArrows(d, p);
             const sx = T.x + p.x * T.k, sy = T.y + p.y * T.k, heading = nextHeading(d, p);
             if (heading !== null) drawArrow(sx, sy, heading, col);
             ctx.beginPath();
@@ -3604,6 +3591,7 @@
     });
     $("showLines").onchange = draw;
     $("showFull").onchange = draw;
+    $("showArrows").onchange = draw;
     $("showPts").onchange = draw;
     $("jumpBtn").onclick = () => {
         const v = $("jumpIn").value;
@@ -3656,11 +3644,6 @@
         }
     }
 
-    $("guideBtn").onclick = () => $("guide").showModal();
-    $("guideClose").onclick = () => $("guide").close();
-    $("guide").addEventListener("click", e => {   // click on the backdrop closes it
-        if (e.target === $("guide")) $("guide").close();
-    });
     $("showFarms").onchange = draw;
     $("showRelief").onchange = draw;
     $("showWater").onchange = draw;
